@@ -103,20 +103,29 @@
         }
         .d-day-badge { animation: pulse-border 2s infinite; }
 
-        /* 커스텀 맵 마커 아이콘 스타일 */
-        .custom-map-marker {
-            background-color: #1e3a8a; /* 짙은 파란색 기본 */
-            color: white;
-            border-radius: 50%;
-            text-align: center;
-            line-height: 24px; /* 높이와 맞춰 중앙 정렬 */
-            font-weight: 900;
-            font-size: 12px;
-            border: 2px solid white;
-            box-shadow: 0 3px 6px rgba(0,0,0,0.4);
+        /* 동선 요약 화살표 애니메이션 */
+        .route-arrow { animation: moveRight 1.5s infinite ease-in-out; }
+        @keyframes moveRight {
+            0% { transform: translateX(0); opacity: 0.5; }
+            50% { transform: translateX(5px); opacity: 1; }
+            100% { transform: translateX(0); opacity: 0.5; }
         }
-        .custom-map-marker.start { background-color: #ef4444; } /* 시작점 빨간색 */
-        .custom-map-marker.end { background-color: #10b981; } /* 종료점 녹색 */
+
+        /* 커스텀 맵 마커 아이콘 스타일 (이모지 및 숙소 반영) */
+        .custom-map-marker {
+            background-color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            border: 2px solid #3b82f6; /* 기본 파란색 테두리 */
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            width: 32px !important;
+            height: 32px !important;
+        }
+        .custom-map-marker.hotel { border-color: #f59e0b; background-color: #fffbeb; } /* 숙소는 노란색 계열 테두리 */
+        .custom-map-marker.airport { border-color: #6b7280; } /* 공항은 회색 테두리 */
 
         /* 지도 탭 활성화 상태 */
         .map-tab.active {
@@ -424,7 +433,7 @@
         </section>
 
         <!-- ========================================== -->
-        <!-- 신규 맵 기반 섹션: 전체 및 일자별 동선 한눈에 보기 -->
+        <!-- 맵 기반 섹션: 전체 및 일자별 동선 한눈에 보기 (이모지 업그레이드 버전) -->
         <!-- ========================================== -->
         <section id="route" class="py-16 bg-blue-50 border-b border-gray-200">
             <div class="container mx-auto px-4 max-w-5xl">
@@ -445,15 +454,15 @@
                         <button onclick="drawMapRoute('day5')" class="map-tab px-4 py-2 rounded-full border-2 border-gray-300 text-gray-700 font-bold text-sm hover:bg-gray-100 transition" id="tab-day5">5/6일차</button>
                     </div>
 
-                    <!-- 현지 동선 플로우 시각화 (항공편 제거, 로컬 집중) -->
+                    <!-- 현지 동선 플로우 시각화 (호텔 및 명소 직관적 요약) -->
                     <div class="flex flex-wrap justify-center items-center gap-2 md:gap-4 text-xs md:text-sm font-bold mb-6 bg-gray-50 p-3 rounded-lg border border-gray-200">
-                        <span class="text-blue-800 bg-blue-100 px-3 py-1.5 rounded-full"><i class="fas fa-map-marker-alt mr-1"></i> 치앙마이 시내</span>
+                        <span class="text-gray-700 bg-gray-200 px-3 py-1.5 rounded-full"><i class="fas fa-plane-arrival mr-1"></i> 공항</span>
                         <i class="fas fa-angle-double-right text-gray-400 route-arrow"></i>
-                        <span class="text-orange-800 bg-orange-100 px-3 py-1.5 rounded-full"><i class="fas fa-elephant mr-1"></i> 치앙라이 (왓롱쿤)</span>
+                        <span class="text-indigo-800 bg-indigo-100 px-3 py-1.5 rounded-full"><i class="fas fa-hotel mr-1"></i> 치앙마이 숙소</span>
                         <i class="fas fa-angle-double-right text-gray-400 route-arrow"></i>
-                        <span class="text-green-800 bg-green-100 px-3 py-1.5 rounded-full"><i class="fas fa-water mr-1"></i> 골든트라이앵글</span>
+                        <span class="text-orange-800 bg-orange-100 px-3 py-1.5 rounded-full"><i class="fas fa-map-marked-alt mr-1"></i> 치앙라이 일정 & 숙소</span>
                         <i class="fas fa-angle-double-right text-gray-400 route-arrow"></i>
-                        <span class="text-purple-800 bg-purple-100 px-3 py-1.5 rounded-full"><i class="fas fa-mountain mr-1"></i> 도이인타논/수텝</span>
+                        <span class="text-green-800 bg-green-100 px-3 py-1.5 rounded-full"><i class="fas fa-leaf mr-1"></i> 도이인타논/수텝</span>
                     </div>
 
                     <!-- Leaflet 맵 컨테이너 -->
@@ -461,7 +470,7 @@
                     
                     <!-- 현재 선택된 날짜의 텍스트 요약 -->
                     <div class="mt-4 text-center bg-gray-50 p-3 rounded-lg border border-gray-200">
-                        <p id="mapSummaryText" class="font-bold text-blue-900 md:text-lg">치앙마이 핵심 명소 및 치앙라이 전체 여정 요약</p>
+                        <p id="mapSummaryText" class="font-bold text-blue-900 md:text-lg">전체 여정: 치앙마이 ➔ 치앙라이 ➔ 도이인타논 ➔ 귀국</p>
                     </div>
                 </div>
             </div>
@@ -1026,51 +1035,53 @@
 
 
         // ==========================================
-        // 지도 관련 로직 (Leaflet.js)
+        // 지도 관련 로직 (Leaflet.js) - 이모지 및 숙소 반영, 에러 수정 완료
         // ==========================================
         let map;
         let routeLayerGroup;
 
-        // 주요 거점 좌표 (태국 현지 집중)
+        // 주요 거점 좌표 및 이모지 (호텔 및 방문지 디테일 추가)
         const loc = {
-            cnx: { lat: 18.7953, lng: 98.9620, name: "치앙마이 시내 (호텔)" },
-            elephant: { lat: 19.2155, lng: 98.8837, name: "매땡 코끼리 캠프" },
-            cei: { lat: 19.8243, lng: 99.7632, name: "치앙라이 (왓롱쿤)" },
-            golden: { lat: 20.3524, lng: 100.0814, name: "골든트라이앵글" },
-            inthanon: { lat: 18.5883, lng: 98.4862, name: "도이 인타논" },
-            suthep: { lat: 18.8050, lng: 98.9215, name: "도이수텝" }
+            airport: { lat: 18.7668, lng: 98.9626, name: "치앙마이 공항", emoji: "✈️", type: "airport" },
+            hotel_cnx: { lat: 18.8000, lng: 98.9800, name: "원트리시티 (치앙마이 숙소)", emoji: "🏨", type: "hotel" },
+            elephant: { lat: 19.2155, lng: 98.8837, name: "매땡 코끼리 캠프", emoji: "🐘", type: "tour" },
+            cei: { lat: 19.8243, lng: 99.7632, name: "왓롱쿤 (백색사원)", emoji: "🛕", type: "tour" },
+            hotel_cei: { lat: 19.9000, lng: 99.8300, name: "그랜드비스타 (치앙라이 숙소)", emoji: "🏨", type: "hotel" },
+            golden: { lat: 20.3524, lng: 100.0814, name: "골든트라이앵글", emoji: "🚤", type: "tour" },
+            inthanon: { lat: 18.5883, lng: 98.4862, name: "도이 인타논 국립공원", emoji: "⛰️", type: "tour" },
+            suthep: { lat: 18.8050, lng: 98.9215, name: "도이수텝 사원", emoji: "🏯", type: "tour" }
         };
 
         // 탭별 동선 데이터 구성 (현지 노선만)
         const routeData = {
             'all': {
-                path: [loc.cnx, loc.elephant, loc.cei, loc.golden, loc.cnx, loc.inthanon, loc.suthep],
-                text: "전체 여정: 치앙마이 ➔ 치앙라이 ➔ 도이인타논 ➔ 도이수텝",
+                path: [loc.airport, loc.hotel_cnx, loc.elephant, loc.cei, loc.hotel_cei, loc.golden, loc.hotel_cnx, loc.inthanon, loc.hotel_cnx, loc.suthep, loc.airport],
+                text: "전체 여정: 치앙마이 ➔ 치앙라이 ➔ 도이인타논 ➔ 귀국",
                 dashArray: null
             },
             'day1': {
-                path: [loc.cnx],
-                text: "1일차: 야간 치앙마이 도착 및 호텔 체크인",
-                dashArray: null
+                path: [loc.airport, loc.hotel_cnx],
+                text: "1일차: 야간 치앙마이 공항 도착 및 호텔 체크인",
+                dashArray: '10, 10'
             },
             'day2': {
-                path: [loc.cnx, loc.elephant, loc.cei],
-                text: "2일차: 치앙마이 ➔ 매땡 코끼리 캠프 ➔ 치앙라이 이동 (왓롱쿤)",
+                path: [loc.hotel_cnx, loc.elephant, loc.cei, loc.hotel_cei],
+                text: "2일차: 치앙마이 숙소 ➔ 매땡 코끼리 캠프 ➔ 왓롱쿤 ➔ 치앙라이 숙소",
                 dashArray: null 
             },
             'day3': {
-                path: [loc.cei, loc.golden, loc.cnx],
-                text: "3일차: 치앙라이 ➔ 골든 트라이앵글 ➔ 치앙마이 귀환",
+                path: [loc.hotel_cei, loc.golden, loc.hotel_cnx],
+                text: "3일차: 치앙라이 숙소 ➔ 골든 트라이앵글 ➔ 치앙마이 숙소 귀환",
                 dashArray: null
             },
             'day4': {
-                path: [loc.cnx, loc.inthanon, loc.cnx],
-                text: "4일차: 치앙마이 시내 ➔ 도이 인타논 국립공원 ➔ 시내 복귀",
+                path: [loc.hotel_cnx, loc.inthanon, loc.hotel_cnx],
+                text: "4일차: 치앙마이 숙소 ➔ 도이 인타논 국립공원 ➔ 숙소 복귀",
                 dashArray: null
             },
             'day5': {
-                path: [loc.cnx, loc.suthep, loc.cnx],
-                text: "5/6일차: 치앙마이 시내 ➔ 도이수텝 사원 ➔ 공항 이동",
+                path: [loc.hotel_cnx, loc.suthep, loc.airport],
+                text: "5/6일차: 치앙마이 숙소 ➔ 도이수텝 사원 ➔ 공항 이동",
                 dashArray: null
             }
         };
@@ -1086,21 +1097,23 @@
 
             routeLayerGroup = L.layerGroup().addTo(map);
             
-            // 처음엔 전체 여정 그리기
-            drawMapRoute('all');
+            // 맵 컨테이너가 렌더링될 시간을 조금 준 후 경로 그리기 실행
+            setTimeout(() => {
+                drawMapRoute('all');
+            }, 100);
         }
 
-        // 숫자가 들어간 커스텀 마커 아이콘 생성기
-        function createCustomIcon(number, isStart, isEnd) {
+        // 이모지 및 타입이 반영된 커스텀 마커 생성기
+        function createCustomIcon(emoji, type) {
             let colorClass = '';
-            if (isStart) colorClass = 'start';
-            else if (isEnd) colorClass = 'end';
+            if (type === 'hotel') colorClass = 'hotel';
+            else if (type === 'airport') colorClass = 'airport';
 
             return L.divIcon({
                 className: 'custom-div-icon',
-                html: `<div class="custom-map-marker ${colorClass} w-6 h-6">${number}</div>`,
-                iconSize: [24, 24],
-                iconAnchor: [12, 12]
+                html: `<div class="custom-map-marker ${colorClass}">${emoji}</div>`,
+                iconSize: [32, 32],
+                iconAnchor: [16, 16] // 마커 중앙을 기준으로 맞춤
             });
         }
 
@@ -1117,7 +1130,6 @@
 
             const data = routeData[dayKey];
             const pathCoords = [];
-            const bounds = L.latLngBounds();
 
             // 요약 텍스트 변경
             document.getElementById('mapSummaryText').innerText = data.text;
@@ -1126,24 +1138,23 @@
             data.path.forEach((point, index) => {
                 const latLng = [point.lat, point.lng];
                 pathCoords.push(latLng);
-                bounds.extend(latLng);
 
-                const isStart = index === 0;
-                const isEnd = index === data.path.length - 1;
-                
-                // 마커 추가
+                // 마커 추가 (이모지 및 장소 타입 전달)
                 const marker = L.marker(latLng, {
-                    icon: createCustomIcon(index + 1, isStart, isEnd)
+                    icon: createCustomIcon(point.emoji, point.type)
                 }).addTo(routeLayerGroup);
 
                 // 툴팁(라벨) 항상 보이게 추가
                 marker.bindTooltip(point.name, {
                     permanent: true, 
                     direction: 'right',
-                    offset: [10, 0],
+                    offset: [12, 0],
                     className: 'font-bold text-sm bg-white/90 border border-gray-300 rounded px-1'
                 }).openTooltip();
             });
+            
+            // Bounds 객체를 포인트 배열로 명확하게 생성하여 유효성 확보
+            const bounds = L.latLngBounds(pathCoords);
 
             // 선 긋기 (마커가 2개 이상일 때만)
             if (pathCoords.length > 1) {
@@ -1157,9 +1168,15 @@
 
             // 지도가 렌더링된 후 경로가 한눈에 들어오도록 줌/이동 애니메이션
             setTimeout(() => {
-                // padding을 주어 마커와 툴팁이 잘리지 않도록 함. 마커가 1개일때 과도한 줌인 방지(maxZoom: 11)
-                map.flyToBounds(bounds, { padding: [50, 50], duration: 1.5, maxZoom: 11 });
-            }, 300);
+                // 레이아웃이 완전히 잡힌 후 invalidateSize 호출로 사이즈 0으로 인한 계산오류 (NaN) 방지
+                map.invalidateSize();
+                
+                const mapSize = map.getSize();
+                // 맵 사이즈가 정상적(0보다 큰 경우)이고, bounds가 유효할 때만 애니메이션 실행
+                if (mapSize.x > 0 && mapSize.y > 0 && bounds.isValid()) {
+                    map.flyToBounds(bounds, { padding: [30, 30], duration: 1.5, maxZoom: 11 });
+                }
+            }, 400);
         }
     </script>
 </body>
