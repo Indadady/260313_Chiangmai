@@ -39,6 +39,9 @@
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 
+    <!-- Leaflet Map CSS (지도 라이브러리) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
     <style>
         body {
             font-family: 'Noto Sans KR', sans-serif;
@@ -99,6 +102,28 @@
             100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
         }
         .d-day-badge { animation: pulse-border 2s infinite; }
+
+        /* 커스텀 맵 마커 아이콘 스타일 */
+        .custom-map-marker {
+            background-color: #1e3a8a; /* 짙은 파란색 기본 */
+            color: white;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 24px; /* 높이와 맞춰 중앙 정렬 */
+            font-weight: 900;
+            font-size: 12px;
+            border: 2px solid white;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.4);
+        }
+        .custom-map-marker.start { background-color: #ef4444; } /* 시작점 빨간색 */
+        .custom-map-marker.end { background-color: #10b981; } /* 종료점 녹색 */
+
+        /* 지도 탭 활성화 상태 */
+        .map-tab.active {
+            background-color: #1e3a8a;
+            color: white;
+            border-color: #1e3a8a;
+        }
 
         /* =========================================================
            [A4 1장 인쇄 전용 CSS - JS로 분기 처리] 
@@ -197,8 +222,9 @@
                     </div>
                 </div>
                 
-                <div class="hidden lg:flex space-x-6 font-bold text-gray-700 text-sm items-center">
+                <div class="hidden lg:flex space-x-5 font-bold text-gray-700 text-sm items-center">
                     <a href="#prep" class="hover:text-blue-600 transition">여행준비</a>
+                    <a href="#route" class="hover:text-blue-600 transition">동선안내</a>
                     <a href="#itinerary" class="hover:text-blue-600 transition">상세일정</a>
                     <a href="#videos" class="hover:text-blue-600 transition">추천영상</a>
                     <a href="tel:010-5115-6118" class="px-4 py-2 bg-[#006494] text-white rounded-full hover:bg-blue-800 transition shadow-md flex items-center gap-2">
@@ -216,6 +242,7 @@
             <div id="mobile-menu" class="hidden lg:hidden bg-white border-t">
                 <div class="flex flex-col p-4 space-y-3 font-medium">
                     <a href="#prep" class="block text-gray-700 hover:bg-gray-50 p-2 rounded">체크리스트 & 준비물</a>
+                    <a href="#route" class="block text-gray-700 hover:bg-gray-50 p-2 rounded">전체/일자별 동선</a>
                     <a href="#itinerary" class="block text-gray-700 hover:bg-gray-50 p-2 rounded">일정 자세히 보기</a>
                     <a href="#videos" class="block text-gray-700 hover:bg-gray-50 p-2 rounded">여행지 추천 영상</a>
                     <a href="tel:010-5115-6118" class="block text-white font-bold bg-[#006494] p-3 rounded-lg text-center shadow-md mt-2">
@@ -266,7 +293,7 @@
         </header>
 
         <!-- 스마트 준비물 & 메모장 Section -->
-        <section id="prep" class="py-16 bg-white border-b">
+        <section id="prep" class="py-16 bg-white border-b border-gray-100">
             <div class="container mx-auto px-4 max-w-5xl">
                 <div class="text-center mb-10" data-aos="fade-up">
                     <h2 class="text-3xl font-bold text-gray-900 section-title">여행 준비 가이드</h2>
@@ -396,13 +423,57 @@
             </div>
         </section>
 
-        <!-- 가독성 중심 타임라인 상세 일정표 (사진보기 기능 제거) -->
-        <section id="itinerary" class="py-16 bg-gray-50">
+        <!-- ========================================== -->
+        <!-- 신규 맵 기반 섹션: 전체 및 일자별 동선 한눈에 보기 -->
+        <!-- ========================================== -->
+        <section id="route" class="py-16 bg-blue-50 border-b border-gray-200">
+            <div class="container mx-auto px-4 max-w-5xl">
+                <div class="text-center mb-8" data-aos="fade-up">
+                    <h2 class="text-3xl font-bold text-gray-900 section-title">한눈에 보는 여행 동선</h2>
+                    <p class="text-gray-600 mt-2 font-medium">일자별 버튼을 클릭하여 현지 주요 이동 경로를 확인해 보세요.</p>
+                </div>
+
+                <div class="bg-white p-4 md:p-6 rounded-2xl shadow-lg border border-gray-200" data-aos="fade-up" data-aos-delay="100">
+                    
+                    <!-- 맵 컨트롤 탭 -->
+                    <div class="flex flex-wrap justify-center gap-2 mb-4">
+                        <button onclick="drawMapRoute('all')" class="map-tab active px-4 py-2 rounded-full border-2 border-gray-300 text-gray-700 font-bold text-sm hover:bg-gray-100 transition" id="tab-all">전체 여정</button>
+                        <button onclick="drawMapRoute('day1')" class="map-tab px-4 py-2 rounded-full border-2 border-gray-300 text-gray-700 font-bold text-sm hover:bg-gray-100 transition" id="tab-day1">1일차</button>
+                        <button onclick="drawMapRoute('day2')" class="map-tab px-4 py-2 rounded-full border-2 border-gray-300 text-gray-700 font-bold text-sm hover:bg-gray-100 transition" id="tab-day2">2일차</button>
+                        <button onclick="drawMapRoute('day3')" class="map-tab px-4 py-2 rounded-full border-2 border-gray-300 text-gray-700 font-bold text-sm hover:bg-gray-100 transition" id="tab-day3">3일차</button>
+                        <button onclick="drawMapRoute('day4')" class="map-tab px-4 py-2 rounded-full border-2 border-gray-300 text-gray-700 font-bold text-sm hover:bg-gray-100 transition" id="tab-day4">4일차</button>
+                        <button onclick="drawMapRoute('day5')" class="map-tab px-4 py-2 rounded-full border-2 border-gray-300 text-gray-700 font-bold text-sm hover:bg-gray-100 transition" id="tab-day5">5/6일차</button>
+                    </div>
+
+                    <!-- 현지 동선 플로우 시각화 (항공편 제거, 로컬 집중) -->
+                    <div class="flex flex-wrap justify-center items-center gap-2 md:gap-4 text-xs md:text-sm font-bold mb-6 bg-gray-50 p-3 rounded-lg border border-gray-200">
+                        <span class="text-blue-800 bg-blue-100 px-3 py-1.5 rounded-full"><i class="fas fa-map-marker-alt mr-1"></i> 치앙마이 시내</span>
+                        <i class="fas fa-angle-double-right text-gray-400 route-arrow"></i>
+                        <span class="text-orange-800 bg-orange-100 px-3 py-1.5 rounded-full"><i class="fas fa-elephant mr-1"></i> 치앙라이 (왓롱쿤)</span>
+                        <i class="fas fa-angle-double-right text-gray-400 route-arrow"></i>
+                        <span class="text-green-800 bg-green-100 px-3 py-1.5 rounded-full"><i class="fas fa-water mr-1"></i> 골든트라이앵글</span>
+                        <i class="fas fa-angle-double-right text-gray-400 route-arrow"></i>
+                        <span class="text-purple-800 bg-purple-100 px-3 py-1.5 rounded-full"><i class="fas fa-mountain mr-1"></i> 도이인타논/수텝</span>
+                    </div>
+
+                    <!-- Leaflet 맵 컨테이너 -->
+                    <div id="routeMap" class="w-full h-[350px] md:h-[500px] rounded-xl z-0 border border-gray-300"></div>
+                    
+                    <!-- 현재 선택된 날짜의 텍스트 요약 -->
+                    <div class="mt-4 text-center bg-gray-50 p-3 rounded-lg border border-gray-200">
+                        <p id="mapSummaryText" class="font-bold text-blue-900 md:text-lg">치앙마이 핵심 명소 및 치앙라이 전체 여정 요약</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 가독성 중심 타임라인 상세 일정표 -->
+        <section id="itinerary" class="py-16 bg-white">
             <div class="container mx-auto px-4 max-w-4xl">
                 
                 <div class="flex flex-col md:flex-row justify-between items-center mb-12 border-b-2 border-gray-800 pb-4">
                     <h2 class="text-2xl md:text-3xl font-black text-gray-900 flex items-center">
-                        <i class="fas fa-map-marked-alt mr-3 text-blue-800"></i> 상세 일정 가이드
+                        <i class="fas fa-list-alt mr-3 text-blue-800"></i> 상세 일정표
                     </h2>
                     <button type="button" onclick="triggerPrintItinerary()" class="mt-4 md:mt-0 bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 px-6 rounded-lg shadow-md transition-colors flex items-center text-sm w-full md:w-auto justify-center">
                         <i class="fas fa-print mr-2 text-lg"></i> 일정표 인쇄하기
@@ -410,120 +481,120 @@
                 </div>
 
                 <!-- Day 1 -->
-                <div class="mb-12 bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-200" data-aos="fade-up">
+                <div class="mb-12 bg-gray-50 p-6 md:p-8 rounded-2xl shadow-sm border border-gray-200" data-aos="fade-up">
                     <div class="border-b border-gray-200 pb-3 mb-6">
                         <div class="flex flex-wrap items-baseline gap-3">
                             <h3 class="text-2xl font-black text-blue-800">제1일</h3>
                             <span class="text-lg font-bold text-gray-700">3월 13일 (금)</span>
-                            <span class="text-sm font-medium text-gray-500 ml-auto bg-gray-100 px-3 py-1 rounded-full">인천 ➔ 치앙마이</span>
+                            <span class="text-sm font-medium text-gray-500 ml-auto bg-white px-3 py-1 rounded-full border border-gray-200">인천 ➔ 치앙마이</span>
                         </div>
                     </div>
                     
-                    <ul class="space-y-6 relative border-l-2 border-gray-200 ml-3 pl-6 mb-6">
+                    <ul class="space-y-6 relative border-l-2 border-gray-300 ml-3 pl-6 mb-6">
                         <li class="relative">
-                            <span class="absolute -left-[31px] top-1 w-4 h-4 rounded-full bg-blue-500 border-4 border-white shadow"></span>
+                            <span class="absolute -left-[31px] top-1 w-4 h-4 rounded-full bg-blue-500 border-4 border-gray-50 shadow"></span>
                             <div class="font-bold text-blue-600 text-sm mb-1">18:45 ~ 22:55</div>
                             <h4 class="font-bold text-lg text-gray-900">인천 출발 ➔ 치앙마이 도착 (KE683)</h4>
                             <p class="text-gray-600 text-sm mt-1">인천 영종도 국제공항 출발. 치앙마이 국제공항 도착 후 가이드 미팅 및 호텔 체크인</p>
                         </li>
                     </ul>
                     
-                    <div class="bg-gray-50 p-4 rounded-lg flex flex-col md:flex-row gap-4 border border-gray-200 text-sm font-medium mt-4">
+                    <div class="bg-white p-4 rounded-lg flex flex-col md:flex-row gap-4 border border-gray-200 text-sm font-medium mt-4 shadow-sm">
                         <div class="flex items-center text-orange-700"><i class="fas fa-utensils mr-2"></i> 석: 기내식</div>
-                        <div class="flex items-center text-indigo-700 md:border-l md:border-gray-300 md:pl-4"><i class="fas fa-bed mr-2"></i> 원트리시티 치앙마이 (HOTEL)</div>
+                        <div class="flex items-center text-indigo-700 md:border-l md:border-gray-200 md:pl-4"><i class="fas fa-bed mr-2"></i> 원트리시티 치앙마이 (HOTEL)</div>
                     </div>
                 </div>
 
                 <!-- Day 2 -->
-                <div class="mb-12 bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-200" data-aos="fade-up">
+                <div class="mb-12 bg-gray-50 p-6 md:p-8 rounded-2xl shadow-sm border border-gray-200" data-aos="fade-up">
                     <div class="border-b border-gray-200 pb-3 mb-6">
                         <div class="flex flex-wrap items-baseline gap-3">
                             <h3 class="text-2xl font-black text-blue-800">제2일</h3>
                             <span class="text-lg font-bold text-gray-700">3월 14일 (토)</span>
-                            <span class="text-sm font-medium text-gray-500 ml-auto bg-gray-100 px-3 py-1 rounded-full">치앙마이 ➔ 치앙라이</span>
+                            <span class="text-sm font-medium text-gray-500 ml-auto bg-white px-3 py-1 rounded-full border border-gray-200">치앙마이 ➔ 치앙라이</span>
                         </div>
                     </div>
                     
-                    <ul class="space-y-6 relative border-l-2 border-gray-200 ml-3 pl-6 mb-6">
+                    <ul class="space-y-6 relative border-l-2 border-gray-300 ml-3 pl-6 mb-6">
                         <li class="relative">
-                            <span class="absolute -left-[31px] top-1 w-4 h-4 rounded-full bg-blue-500 border-4 border-white shadow"></span>
+                            <span class="absolute -left-[31px] top-1 w-4 h-4 rounded-full bg-blue-500 border-4 border-gray-50 shadow"></span>
                             <div class="font-bold text-blue-600 text-sm mb-1">오전 일정</div>
                             <h4 class="font-bold text-lg text-gray-900">매땡 코끼리 캠프</h4>
                             <p class="text-gray-600 text-sm mt-1">호텔 조식 후 이동하여 코끼리쇼, 코끼리트레킹, 물소마차, 뗏목트레킹 체험</p>
                         </li>
                         <li class="relative">
-                            <span class="absolute -left-[31px] top-1 w-4 h-4 rounded-full bg-blue-500 border-4 border-white shadow"></span>
+                            <span class="absolute -left-[31px] top-1 w-4 h-4 rounded-full bg-blue-500 border-4 border-gray-50 shadow"></span>
                             <div class="font-bold text-blue-600 text-sm mb-1">오후 일정</div>
                             <h4 class="font-bold text-lg text-gray-900">왓롱쿤 (백색사원) & 전신마사지</h4>
                             <p class="text-gray-600 text-sm mt-1">치앙라이로 이동하여 태국 북부 불교 미술의 걸작 관람 후, 피로를 풀어줄 <span class="font-bold text-red-600">전신안마 2시간</span> 진행 (팁 별도)</p>
                         </li>
                         <li class="relative">
-                            <span class="absolute -left-[31px] top-1 w-4 h-4 rounded-full bg-red-500 border-4 border-white shadow"></span>
+                            <span class="absolute -left-[31px] top-1 w-4 h-4 rounded-full bg-red-500 border-4 border-gray-50 shadow"></span>
                             <div class="font-bold text-red-600 text-sm mb-1">야간 투어</div>
                             <h4 class="font-bold text-lg text-gray-900">치앙라이 나이트바자</h4>
                             <p class="text-gray-600 text-sm mt-1">무제한 삼겹살 특식 후 현지 야시장 자유시간</p>
                         </li>
                     </ul>
                     
-                    <div class="bg-gray-50 p-4 rounded-lg flex flex-col md:flex-row gap-4 border border-gray-200 text-sm font-medium mt-4">
+                    <div class="bg-white p-4 rounded-lg flex flex-col md:flex-row gap-4 border border-gray-200 text-sm font-medium mt-4 shadow-sm">
                         <div class="flex items-center text-orange-700"><i class="fas fa-utensils mr-2"></i> 조: 호텔식 / 중: 현지식 / 석: 무제한 삼겹살</div>
-                        <div class="flex items-center text-indigo-700 md:border-l md:border-gray-300 md:pl-4"><i class="fas fa-bed mr-2"></i> 그랜드비스타 치앙라이</div>
+                        <div class="flex items-center text-indigo-700 md:border-l md:border-gray-200 md:pl-4"><i class="fas fa-bed mr-2"></i> 그랜드비스타 치앙라이</div>
                     </div>
                 </div>
 
                 <!-- Day 3 -->
-                <div class="mb-12 bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-200" data-aos="fade-up">
+                <div class="mb-12 bg-gray-50 p-6 md:p-8 rounded-2xl shadow-sm border border-gray-200" data-aos="fade-up">
                     <div class="border-b border-gray-200 pb-3 mb-6">
                         <div class="flex flex-wrap items-baseline gap-3">
                             <h3 class="text-2xl font-black text-blue-800">제3일</h3>
                             <span class="text-lg font-bold text-gray-700">3월 15일 (일)</span>
-                            <span class="text-sm font-medium text-gray-500 ml-auto bg-gray-100 px-3 py-1 rounded-full">치앙라이 ➔ 치앙마이 귀환</span>
+                            <span class="text-sm font-medium text-gray-500 ml-auto bg-white px-3 py-1 rounded-full border border-gray-200">치앙라이 ➔ 치앙마이 귀환</span>
                         </div>
                     </div>
                     
-                    <ul class="space-y-6 relative border-l-2 border-gray-200 ml-3 pl-6 mb-6">
+                    <ul class="space-y-6 relative border-l-2 border-gray-300 ml-3 pl-6 mb-6">
                         <li class="relative">
-                            <span class="absolute -left-[31px] top-1 w-4 h-4 rounded-full bg-blue-500 border-4 border-white shadow"></span>
+                            <span class="absolute -left-[31px] top-1 w-4 h-4 rounded-full bg-blue-500 border-4 border-gray-50 shadow"></span>
                             <div class="font-bold text-blue-600 text-sm mb-1">오전 투어</div>
                             <h4 class="font-bold text-lg text-gray-900">골든 트라이앵글 & 메콩강 유람</h4>
                             <p class="text-gray-600 text-sm mt-1">지압선으로 이동. 롱테일 보트를 타고 3개국 (태국, 미얀마, 라오스) 접경지역 관광</p>
                         </li>
                         <li class="relative">
-                            <span class="absolute -left-[31px] top-1 w-4 h-4 rounded-full bg-blue-500 border-4 border-white shadow"></span>
+                            <span class="absolute -left-[31px] top-1 w-4 h-4 rounded-full bg-blue-500 border-4 border-gray-50 shadow"></span>
                             <div class="font-bold text-blue-600 text-sm mb-1">오후 투어</div>
                             <h4 class="font-bold text-lg text-gray-900">블루템플 & 싱하파크 & 노천 온천</h4>
                             <p class="text-gray-600 text-sm mt-1">푸른색 신화적 조각 사원(블루템플) 및 최대 자연공원(싱하파크) 관람. 메카찬 노천 족욕 체험.</p>
                         </li>
                         <li class="relative">
-                            <span class="absolute -left-[31px] top-1 w-4 h-4 rounded-full bg-red-500 border-4 border-white shadow"></span>
+                            <span class="absolute -left-[31px] top-1 w-4 h-4 rounded-full bg-red-500 border-4 border-gray-50 shadow"></span>
                             <div class="font-bold text-red-600 text-sm mb-1">힐링 & 야간</div>
                             <h4 class="font-bold text-lg text-gray-900">전신마사지 & 쌈밥정식</h4>
                             <p class="text-gray-600 text-sm mt-1">치앙마이로 귀환하여 피로를 푸는 <span class="font-bold text-red-600">전신안마 2시간</span> 후 특식.</p>
                         </li>
                     </ul>
                     
-                    <div class="bg-gray-50 p-4 rounded-lg flex flex-col md:flex-row gap-4 border border-gray-200 text-sm font-medium mt-4">
+                    <div class="bg-white p-4 rounded-lg flex flex-col md:flex-row gap-4 border border-gray-200 text-sm font-medium mt-4 shadow-sm">
                         <div class="flex items-center text-orange-700"><i class="fas fa-utensils mr-2"></i> 조: 호텔식 / 중: 현지식 / 석: 쌈밥정식 특식</div>
-                        <div class="flex items-center text-indigo-700 md:border-l md:border-gray-300 md:pl-4"><i class="fas fa-bed mr-2"></i> 원트리시티 치앙마이</div>
+                        <div class="flex items-center text-indigo-700 md:border-l md:border-gray-200 md:pl-4"><i class="fas fa-bed mr-2"></i> 원트리시티 치앙마이</div>
                     </div>
                 </div>
 
                 <!-- Day 4 -->
-                <div class="mb-12 bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-200" data-aos="fade-up">
+                <div class="mb-12 bg-gray-50 p-6 md:p-8 rounded-2xl shadow-sm border border-gray-200" data-aos="fade-up">
                     <div class="border-b border-gray-200 pb-3 mb-6">
                         <div class="flex flex-wrap items-baseline gap-3">
                             <h3 class="text-2xl font-black text-blue-800">제4일</h3>
                             <span class="text-lg font-bold text-gray-700">3월 16일 (월)</span>
-                            <span class="text-sm font-medium text-gray-500 ml-auto bg-gray-100 px-3 py-1 rounded-full">도이 인타논 대자연</span>
+                            <span class="text-sm font-medium text-gray-500 ml-auto bg-white px-3 py-1 rounded-full border border-gray-200">도이 인타논 대자연</span>
                         </div>
                     </div>
                     
-                    <ul class="space-y-6 relative border-l-2 border-gray-200 ml-3 pl-6 mb-6">
+                    <ul class="space-y-6 relative border-l-2 border-gray-300 ml-3 pl-6 mb-6">
                         <li class="relative">
-                            <span class="absolute -left-[31px] top-1 w-4 h-4 rounded-full bg-blue-500 border-4 border-white shadow"></span>
+                            <span class="absolute -left-[31px] top-1 w-4 h-4 rounded-full bg-blue-500 border-4 border-gray-50 shadow"></span>
                             <div class="font-bold text-blue-600 text-sm mb-1">오전 & 오후 투어</div>
                             <h4 class="font-bold text-lg text-gray-900">도이 인타논 국립공원 & 와치라탄 폭포</h4>
-                            <div class="bg-blue-50 p-3 rounded-lg mt-2 text-sm text-gray-700 leading-relaxed border border-blue-100">
+                            <div class="bg-white p-3 rounded-lg mt-2 text-sm text-gray-700 leading-relaxed border border-gray-200 shadow-sm">
                                 • 태국 최고봉(해발 2,565m) 앙카트레일 트레킹<br>
                                 • 고산족 커피마을 전통 커피 시음 & 국왕/왕비 장수기념탑<br>
                                 • 70m 웅장함! 와치라탄 폭포<br>
@@ -531,44 +602,44 @@
                             </div>
                         </li>
                         <li class="relative">
-                            <span class="absolute -left-[31px] top-1 w-4 h-4 rounded-full bg-red-500 border-4 border-white shadow"></span>
+                            <span class="absolute -left-[31px] top-1 w-4 h-4 rounded-full bg-red-500 border-4 border-gray-50 shadow"></span>
                             <div class="font-bold text-red-600 text-sm mb-1">힐링 & 야간</div>
                             <h4 class="font-bold text-lg text-gray-900">전신마사지 & 나이트바자</h4>
                             <p class="text-gray-600 text-sm mt-1">오늘도 <span class="font-bold text-red-600">전신안마 2시간</span>으로 피로 회복 후 치앙마이 야시장 자유시간</p>
                         </li>
                     </ul>
                     
-                    <div class="bg-gray-50 p-4 rounded-lg flex flex-col md:flex-row gap-4 border border-gray-200 text-sm font-medium mt-4">
+                    <div class="bg-white p-4 rounded-lg flex flex-col md:flex-row gap-4 border border-gray-200 text-sm font-medium mt-4 shadow-sm">
                         <div class="flex items-center text-orange-700"><i class="fas fa-utensils mr-2"></i> 조: 호텔식 / 중: 로얄프로젝트 현지식 / 석: 식사부구 (자유식)</div>
-                        <div class="flex items-center text-indigo-700 md:border-l md:border-gray-300 md:pl-4"><i class="fas fa-bed mr-2"></i> 원트리시티 치앙마이</div>
+                        <div class="flex items-center text-indigo-700 md:border-l md:border-gray-200 md:pl-4"><i class="fas fa-bed mr-2"></i> 원트리시티 치앙마이</div>
                     </div>
                 </div>
 
                 <!-- Day 5 & 6 -->
-                <div class="mb-12 bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-200" data-aos="fade-up">
+                <div class="mb-12 bg-gray-50 p-6 md:p-8 rounded-2xl shadow-sm border border-gray-200" data-aos="fade-up">
                     <div class="border-b border-gray-200 pb-3 mb-6">
                         <div class="flex flex-wrap items-baseline gap-3">
                             <h3 class="text-2xl font-black text-blue-800">제5/6일</h3>
                             <span class="text-lg font-bold text-gray-700">3월 17일(화) ~ 18일(수)</span>
-                            <span class="text-sm font-medium text-gray-500 ml-auto bg-gray-100 px-3 py-1 rounded-full">수텝산 명소 & 한국 복귀</span>
+                            <span class="text-sm font-medium text-gray-500 ml-auto bg-white px-3 py-1 rounded-full border border-gray-200">수텝산 명소 & 한국 복귀</span>
                         </div>
                     </div>
                     
-                    <ul class="space-y-6 relative border-l-2 border-gray-200 ml-3 pl-6 mb-6">
+                    <ul class="space-y-6 relative border-l-2 border-gray-300 ml-3 pl-6 mb-6">
                         <li class="relative">
-                            <span class="absolute -left-[31px] top-1 w-4 h-4 rounded-full bg-blue-500 border-4 border-white shadow"></span>
+                            <span class="absolute -left-[31px] top-1 w-4 h-4 rounded-full bg-blue-500 border-4 border-gray-50 shadow"></span>
                             <div class="font-bold text-blue-600 text-sm mb-1">5일차 오전 투어</div>
                             <h4 class="font-bold text-lg text-gray-900">도이수텝 사원 & 몽족 마을</h4>
                             <p class="text-gray-600 text-sm mt-1">수텝산(1,200m)에 위치한 치앙마이 랜드마크. 부처님 사리가 모셔진 금빛 사원과 민속마을 관광.</p>
                         </li>
                         <li class="relative">
-                            <span class="absolute -left-[31px] top-1 w-4 h-4 rounded-full bg-blue-500 border-4 border-white shadow"></span>
+                            <span class="absolute -left-[31px] top-1 w-4 h-4 rounded-full bg-blue-500 border-4 border-gray-50 shadow"></span>
                             <div class="font-bold text-blue-600 text-sm mb-1">5일차 오후 일정</div>
                             <h4 class="font-bold text-lg text-gray-900">아트인 파라다이스 & 미슐랭 특식</h4>
                             <p class="text-gray-600 text-sm mt-1">입체 3D 미술관 관람 및 쇼핑. 석식으로 미슐랭 정글식당(카오소이 등) 특식 제공.</p>
                         </li>
                         <li class="relative">
-                            <span class="absolute -left-[31px] top-1 w-4 h-4 rounded-full bg-blue-500 border-4 border-white shadow"></span>
+                            <span class="absolute -left-[31px] top-1 w-4 h-4 rounded-full bg-blue-500 border-4 border-gray-50 shadow"></span>
                             <div class="font-bold text-blue-600 text-sm mb-1">6일차 귀국 (3/18 수)</div>
                             <h4 class="font-bold text-lg text-gray-900">공항 이동 ➔ 인천 도착</h4>
                             <p class="text-white font-bold text-sm bg-blue-600 inline-block px-3 py-1.5 rounded-lg shadow-sm mt-2">
@@ -577,9 +648,9 @@
                         </li>
                     </ul>
                     
-                    <div class="bg-gray-50 p-4 rounded-lg flex flex-col gap-2 border border-gray-200 text-sm font-medium mt-4">
+                    <div class="bg-white p-4 rounded-lg flex flex-col gap-2 border border-gray-200 text-sm font-medium mt-4 shadow-sm">
                         <div class="text-orange-700"><i class="fas fa-utensils mr-2 w-4"></i> 5일차 : 조(호텔) / 중(한식뷔페) / 석(미슐랭 정글식당)</div>
-                        <div class="text-orange-700"><i class="fas fa-utensils mr-2 w-4"></i> 6일차 : 조(기내식)</div>
+                        <div class="text-orange-700 border-t border-gray-100 pt-2 mt-1"><i class="fas fa-utensils mr-2 w-4"></i> 6일차 : 조(기내식)</div>
                     </div>
                 </div>
 
@@ -868,6 +939,8 @@
 
     <!-- Scripts -->
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
     <script>
         AOS.init({ once: true, offset: 50, duration: 800 });
 
@@ -946,8 +1019,148 @@
                     localStorage.setItem('chiangmai_healing_chk_' + e.target.id, e.target.checked);
                 });
             });
+            
+            // 지도 초기화 함수 호출
+            initMap();
         });
 
+
+        // ==========================================
+        // 지도 관련 로직 (Leaflet.js)
+        // ==========================================
+        let map;
+        let routeLayerGroup;
+
+        // 주요 거점 좌표 (태국 현지 집중)
+        const loc = {
+            cnx: { lat: 18.7953, lng: 98.9620, name: "치앙마이 시내 (호텔)" },
+            elephant: { lat: 19.2155, lng: 98.8837, name: "매땡 코끼리 캠프" },
+            cei: { lat: 19.8243, lng: 99.7632, name: "치앙라이 (왓롱쿤)" },
+            golden: { lat: 20.3524, lng: 100.0814, name: "골든트라이앵글" },
+            inthanon: { lat: 18.5883, lng: 98.4862, name: "도이 인타논" },
+            suthep: { lat: 18.8050, lng: 98.9215, name: "도이수텝" }
+        };
+
+        // 탭별 동선 데이터 구성 (현지 노선만)
+        const routeData = {
+            'all': {
+                path: [loc.cnx, loc.elephant, loc.cei, loc.golden, loc.cnx, loc.inthanon, loc.suthep],
+                text: "전체 여정: 치앙마이 ➔ 치앙라이 ➔ 도이인타논 ➔ 도이수텝",
+                dashArray: null
+            },
+            'day1': {
+                path: [loc.cnx],
+                text: "1일차: 야간 치앙마이 도착 및 호텔 체크인",
+                dashArray: null
+            },
+            'day2': {
+                path: [loc.cnx, loc.elephant, loc.cei],
+                text: "2일차: 치앙마이 ➔ 매땡 코끼리 캠프 ➔ 치앙라이 이동 (왓롱쿤)",
+                dashArray: null 
+            },
+            'day3': {
+                path: [loc.cei, loc.golden, loc.cnx],
+                text: "3일차: 치앙라이 ➔ 골든 트라이앵글 ➔ 치앙마이 귀환",
+                dashArray: null
+            },
+            'day4': {
+                path: [loc.cnx, loc.inthanon, loc.cnx],
+                text: "4일차: 치앙마이 시내 ➔ 도이 인타논 국립공원 ➔ 시내 복귀",
+                dashArray: null
+            },
+            'day5': {
+                path: [loc.cnx, loc.suthep, loc.cnx],
+                text: "5/6일차: 치앙마이 시내 ➔ 도이수텝 사원 ➔ 공항 이동",
+                dashArray: null
+            }
+        };
+
+        function initMap() {
+            // 기본 지도 세팅 (태국 북부 중심 줌인)
+            map = L.map('routeMap').setView([19.2, 99.0], 8);
+
+            // OpenStreetMap 타일 레이어
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+
+            routeLayerGroup = L.layerGroup().addTo(map);
+            
+            // 처음엔 전체 여정 그리기
+            drawMapRoute('all');
+        }
+
+        // 숫자가 들어간 커스텀 마커 아이콘 생성기
+        function createCustomIcon(number, isStart, isEnd) {
+            let colorClass = '';
+            if (isStart) colorClass = 'start';
+            else if (isEnd) colorClass = 'end';
+
+            return L.divIcon({
+                className: 'custom-div-icon',
+                html: `<div class="custom-map-marker ${colorClass} w-6 h-6">${number}</div>`,
+                iconSize: [24, 24],
+                iconAnchor: [12, 12]
+            });
+        }
+
+        function drawMapRoute(dayKey) {
+            // 버튼 활성화 UI 변경
+            document.querySelectorAll('.map-tab').forEach(el => el.classList.remove('active', 'bg-blue-900', 'text-white'));
+            const activeBtn = document.getElementById('tab-' + dayKey);
+            if(activeBtn) {
+                activeBtn.classList.add('active');
+            }
+
+            // 기존에 그려진 마커와 선 지우기
+            routeLayerGroup.clearLayers();
+
+            const data = routeData[dayKey];
+            const pathCoords = [];
+            const bounds = L.latLngBounds();
+
+            // 요약 텍스트 변경
+            document.getElementById('mapSummaryText').innerText = data.text;
+
+            // 마커 및 경로 생성
+            data.path.forEach((point, index) => {
+                const latLng = [point.lat, point.lng];
+                pathCoords.push(latLng);
+                bounds.extend(latLng);
+
+                const isStart = index === 0;
+                const isEnd = index === data.path.length - 1;
+                
+                // 마커 추가
+                const marker = L.marker(latLng, {
+                    icon: createCustomIcon(index + 1, isStart, isEnd)
+                }).addTo(routeLayerGroup);
+
+                // 툴팁(라벨) 항상 보이게 추가
+                marker.bindTooltip(point.name, {
+                    permanent: true, 
+                    direction: 'right',
+                    offset: [10, 0],
+                    className: 'font-bold text-sm bg-white/90 border border-gray-300 rounded px-1'
+                }).openTooltip();
+            });
+
+            // 선 긋기 (마커가 2개 이상일 때만)
+            if (pathCoords.length > 1) {
+                L.polyline(pathCoords, {
+                    color: '#3b82f6', // Tailwind blue-500
+                    weight: 4,
+                    opacity: 0.8,
+                    dashArray: data.dashArray 
+                }).addTo(routeLayerGroup);
+            }
+
+            // 지도가 렌더링된 후 경로가 한눈에 들어오도록 줌/이동 애니메이션
+            setTimeout(() => {
+                // padding을 주어 마커와 툴팁이 잘리지 않도록 함. 마커가 1개일때 과도한 줌인 방지(maxZoom: 11)
+                map.flyToBounds(bounds, { padding: [50, 50], duration: 1.5, maxZoom: 11 });
+            }, 300);
+        }
     </script>
 </body>
 </html>
